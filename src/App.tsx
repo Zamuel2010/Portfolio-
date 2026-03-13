@@ -48,7 +48,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-50' : 'bg-white text-zinc-900'}`}>
+    <div className={`min-h-[100dvh] font-sans transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-50' : 'bg-white text-zinc-900'}`}>
       {/* Navigation */}
       <nav className={`fixed top-0 left-0 w-full z-50 backdrop-blur-md border-b transition-colors duration-300 ${
         theme === 'dark' ? 'bg-zinc-950/80 border-zinc-800' : 'bg-white/80 border-zinc-100'
@@ -170,7 +170,7 @@ function LandingView({ onExplore, theme }: { onExplore: () => void; theme: Theme
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden"
+      className="min-h-[calc(100dvh-80px)] flex flex-col items-center justify-center text-center px-6 relative overflow-hidden"
     >
       {/* Modern Noise Texture Overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] brightness-100 contrast-150" />

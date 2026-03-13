@@ -1,17 +1,34 @@
 import { useState, useEffect } from 'react';
 import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let ai: GoogleGenAI | null = null;
+try {
+  // Initialize safely in case of environment issues
+  ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+} catch (e) {
+  console.error("Failed to initialize Gemini API", e);
+}
 
 // IndexedDB helper to cache images and avoid regenerating on every reload
 const getDb = () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('ImageCache', 1);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore('images');
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    try {
+      if (typeof window === 'undefined' || !window.indexedDB) {
+        return reject(new Error("IndexedDB not supported or blocked"));
+      }
+      const request = window.indexedDB.open('ImageCache', 1);
+      request.onupgradeneeded = () => {
+        try {
+          request.result.createObjectStore('images');
+        } catch (err) {
+          reject(err);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    } catch (e) {
+      reject(e);
+    }
   });
 };
 
@@ -19,11 +36,15 @@ const getCachedImage = async (key: string) => {
   try {
     const db = await getDb();
     return new Promise<string | null>((resolve) => {
-      const tx = db.transaction('images', 'readonly');
-      const store = tx.objectStore('images');
-      const request = store.get(key);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => resolve(null);
+      try {
+        const tx = db.transaction('images', 'readonly');
+        const store = tx.objectStore('images');
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => resolve(null);
+      } catch (err) {
+        resolve(null);
+      }
     });
   } catch (e) {
     return null;
@@ -34,10 +55,15 @@ const setCachedImage = async (key: string, data: string) => {
   try {
     const db = await getDb();
     return new Promise<void>((resolve) => {
-      const tx = db.transaction('images', 'readwrite');
-      const store = tx.objectStore('images');
-      store.put(data, key);
-      tx.oncomplete = () => resolve();
+      try {
+        const tx = db.transaction('images', 'readwrite');
+        const store = tx.objectStore('images');
+        store.put(data, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch (err) {
+        resolve();
+      }
     });
   } catch (e) {
     // ignore
@@ -57,6 +83,11 @@ export function GeneratedImage({ prompt, alt, className }: { prompt: string, alt
       
       if (cached) {
         if (isMounted) setSrc(cached);
+        return;
+      }
+      
+      if (!ai) {
+        if (isMounted) setError(true);
         return;
       }
       
@@ -96,7 +127,7 @@ export function GeneratedImage({ prompt, alt, className }: { prompt: string, alt
     return (
       <div className={`animate-pulse bg-zinc-200 dark:bg-zinc-800 flex flex-col items-center justify-center gap-4 ${className}`}>
         <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest font-bold">Generating AI Image...</span>
+        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase tracking-widest font-bold text-center px-4">Generating AI Image...</span>
       </div>
     );
   }
